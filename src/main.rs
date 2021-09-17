@@ -27,14 +27,18 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+    let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
     let surface = unsafe { instance.create_surface(&window) };
 
-    let adapter = block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: Some(&surface),
-    }))
-    .unwrap();
+    let adapter = instance
+        .enumerate_adapters(wgpu::Backends::VULKAN)
+        .filter(|adapter| {
+            let info = adapter.get_info();
+            println!("{:?}", info);
+            info.name.to_lowercase().contains("intel")
+        })
+        .next()
+        .expect("No intel adapters available");
 
     let (mut device, mut queue) = block_on(adapter.request_device(
         &wgpu::DeviceDescriptor {
