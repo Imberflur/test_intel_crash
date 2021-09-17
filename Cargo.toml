@@ -8,12 +8,9 @@ resolver = "2"
 
 [dependencies]
 futures-lite = "1.12"
-wgpu = "=0.8.0"
+wgpu = "0.9.0"
 winit = "0.25.0"
 # egui stuff
 egui = {version = "0.12"}
-egui_wgpu_backend = {git = "https://github.com/hasenbanck/egui_wgpu_backend.git", rev = "63a002c6a9b6c016e45806dd065864431caab621"}
+egui_wgpu_backend = "0.9.0"
 egui_winit_platform = {version = "0.8"}
-
-[patch.crates-io]
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "a92b8549a8e2cb9dac781bafc5ed32828f3caf46" }
