@@ -27,11 +27,11 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
+    let instance = wgpu::Instance::new(wgpu::BackendBit::VULKAN);
     let surface = unsafe { instance.create_surface(&window) };
 
     let adapter = instance
-        .enumerate_adapters(wgpu::Backends::VULKAN)
+        .enumerate_adapters(wgpu::BackendBit::VULKAN)
         .filter(|adapter| {
             let info = adapter.get_info();
             println!("{:?}", info);
@@ -51,15 +51,16 @@ fn main() {
     .unwrap();
 
     let size = window.inner_size();
-    let surface_format = surface.get_preferred_format(&adapter).unwrap();
-    let mut surface_config = wgpu::SurfaceConfiguration {
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+    //  let surface_format = surface.get_preferred_format(&adapter).unwrap();
+    let surface_format = adapter.get_swap_chain_preferred_format(&surface).unwrap();
+    let surface_config = wgpu::SwapChainDescriptor {
+        usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
         format: surface_format,
         width: size.width as u32,
         height: size.height as u32,
         present_mode: wgpu::PresentMode::Mailbox,
     };
-    surface.configure(&device, &surface_config);
+    let swap_chain = device.create_swap_chain(&surface, &surface_config);
 
     // We use the egui_winit_platform crate as the platform.
     let mut platform = Platform::new(PlatformDescriptor {
@@ -82,23 +83,19 @@ fn main() {
             RedrawRequested(..) => {
                 platform.update_time(start_time.elapsed().as_secs_f64());
 
-                let output_frame = match surface.get_current_frame() {
+                let output_frame = match swap_chain.get_current_frame() {
                     Ok(frame) => frame,
                     Err(e) => {
                         eprintln!("Dropped frame with error: {}", e);
                         return;
                     }
                 };
-                let output_view = output_frame
-                    .output
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
 
                 // Begin to draw the UI frame.
                 platform.begin_frame();
 
                 // End the UI frame. We could now handle the output and draw the UI with the backend.
-                let (_output, paint_commands) = platform.end_frame(Some(&window));
+                let (_output, paint_commands) = platform.end_frame();
                 let paint_jobs = platform.context().tessellate(paint_commands);
 
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -116,15 +113,13 @@ fn main() {
                 egui_rpass.update_buffers(&mut device, &mut queue, &paint_jobs, &screen_descriptor);
 
                 // Record all render passes.
-                egui_rpass
-                    .execute(
-                        &mut encoder,
-                        &output_view,
-                        &paint_jobs,
-                        &screen_descriptor,
-                        Some(wgpu::Color::BLACK),
-                    )
-                    .unwrap();
+                egui_rpass.execute(
+                    &mut encoder,
+                    &output_frame.output.view,
+                    &paint_jobs,
+                    &screen_descriptor,
+                    Some(wgpu::Color::BLACK),
+                );
 
                 // Submit the commands.
                 queue.submit(iter::once(encoder.finish()));
@@ -134,10 +129,10 @@ fn main() {
                 window.request_redraw();
             }
             WindowEvent { event, .. } => match event {
-                winit::event::WindowEvent::Resized(size) => {
-                    surface_config.width = size.width;
-                    surface_config.height = size.height;
-                    surface.configure(&device, &surface_config);
+                winit::event::WindowEvent::Resized(_size) => {
+                    //surface_config.width = size.width;
+                    //surface_config.height = size.height;
+                    //surface.configure(&device, &surface_config);
                 }
                 winit::event::WindowEvent::CloseRequested => {
                     *control_flow = ControlFlow::Exit;
